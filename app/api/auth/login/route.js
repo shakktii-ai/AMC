@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '../../../../lib/db.js';
-import User from '../../../../models/User.js';
-import Customer from '../../../../models/Customer.js';
-import { comparePassword, signToken, TOKEN_COOKIE_NAME } from '../../../../lib/auth.js';
-import { loginSchema } from '../../../../validators/schemas.js';
-import { logAudit } from '../../../../lib/audit.js';
+import dbConnect from '@/lib/db.js';
+import User from '@/models/User.js';
+import Customer from '@/models/Customer.js';
+import { comparePassword, signToken, TOKEN_COOKIE_NAME } from '@/lib/auth.js';
+import { loginSchema } from '@/validators/schemas.js';
+import { logAudit } from '@/lib/audit.js';
 
 export async function POST(req) {
   try {

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getAuthUser } from '../../../../lib/auth.js';
-import dbConnect from '../../../../lib/db.js';
-import User from '../../../../models/User.js';
+import { getAuthUser } from '@/lib/auth.js';
+import dbConnect from '@/lib/db.js';
+import User from '@/models/User.js';
 
 export async function GET(req) {
   try {

@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '../../../lib/db.js';
-import Customer from '../../../models/Customer.js';
-import Lift from '../../../models/Lift.js';
-import AMC from '../../../models/AMC.js';
-import Service from '../../../models/Service.js';
-import Complaint from '../../../models/Complaint.js';
-import Invoice from '../../../models/Invoice.js';
-import { authorizeApi, ROLES } from '../../../lib/rbac.js';
-import { calculateAmcStatus } from '../../../lib/amc-service.js';
+import mongoose from 'mongoose';
+import dbConnect from '@/lib/db.js';
+import Customer from '@/models/Customer.js';
+import Lift from '@/models/Lift.js';
+import AMC from '@/models/AMC.js';
+import Service from '@/models/Service.js';
+import Complaint from '@/models/Complaint.js';
+import Invoice from '@/models/Invoice.js';
+import { authorizeApi, ROLES } from '@/lib/rbac.js';
+import { calculateAmcStatus } from '@/lib/amc-service.js';
 
 export async function GET(req) {
   try {
@@ -27,13 +28,18 @@ export async function GET(req) {
           stats: { totalCustomers: 0, totalLifts: 0, activeAmc: 0, upcomingAmcExpiry: 0, openComplaints: 0, pendingServices: 0, pendingInvoices: 0, outstandingAmount: 0 },
         });
       }
-      customerFilter = { customerId: auth.user.customerId };
+
+      const custObjId = mongoose.Types.ObjectId.isValid(auth.user.customerId)
+        ? new mongoose.Types.ObjectId(auth.user.customerId)
+        : auth.user.customerId;
+
+      customerFilter = { customerId: custObjId };
     }
 
     // Role-specific stats queries
     let totalCustomersQuery = Customer.countDocuments({ status: 'ACTIVE' });
     let totalLiftsQuery = Lift.countDocuments(customerFilter);
-    let allAmcsQuery = AMC.find(role === ROLES.CUSTOMER ? { customerId: auth.user.customerId } : {});
+    let allAmcsQuery = AMC.find(customerFilter);
     let openComplaintsQuery = Complaint.countDocuments({
       ...customerFilter,
       status: { $nin: ['RESOLVED', 'CLOSED', 'CANCELLED'] },
