@@ -52,7 +52,7 @@ export default function PpmPage() {
             <tbody className="divide-y divide-slate-100">
               {services.map((s) => (
                 <tr key={s._id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="p-4 font-mono font-bold text-sky-600">{s.serviceId}</td>
+                  <td className="p-4 font-mono font-bold text-sky-600 whitespace-nowrap" title={s.serviceId}>{s.serviceId}</td>
                   <td className="p-4 font-bold text-slate-900">{s.customerId?.name}</td>
                   <td className="p-4 text-xs font-semibold text-slate-800">{s.liftId?.buildingName} ({s.liftId?.assetCode})</td>
                   <td className="p-4 text-xs text-slate-600">{new Date(s.scheduledStartTime).toLocaleString()}</td>

@@ -53,7 +53,7 @@ export default function ServicesPage() {
             <tbody className="divide-y divide-slate-100">
               {services.map((s) => (
                 <tr key={s._id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="p-4 font-mono font-bold text-sky-600">{s.serviceId}</td>
+                  <td className="p-4 font-mono font-bold text-sky-600 whitespace-nowrap" title={s.serviceId}>{s.serviceId}</td>
                   <td className="p-4">
                     <Badge variant={s.serviceSource === 'PPM' ? 'info' : 'warning'}>{s.serviceSource}</Badge>
                   </td>

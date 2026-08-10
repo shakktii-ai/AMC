@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { calculateAmcStatus, datesOverlap } from '../lib/amc-service.js';
-import { generatePpmScheduleDates } from '../lib/ppm-generator.js';
+import { generatePpmScheduleDates, formatPpmServiceId } from '../lib/ppm-generator.js';
 
 test('AMC dynamic status calculation', () => {
   const now = new Date();
@@ -40,4 +40,12 @@ test('PPM Schedule date generator', () => {
 
   const quarterlyDates = generatePpmScheduleDates(startDate, endDate, 'QUARTERLY');
   assert.equal(quarterlyDates.length, 4);
+});
+
+test('PPM Service ID deterministic format', () => {
+  const amc1 = { contractNumber: 'AMC-2026-000001', startDate: new Date('2026-01-01') };
+  assert.equal(formatPpmServiceId(amc1, 0, 0), 'PPM-AMC-2026-000001-LIFT-1-V01');
+
+  const amc2 = { amcId: 'AMC-5001', startDate: new Date('2026-01-01') };
+  assert.equal(formatPpmServiceId(amc2, 1, 2), 'PPM-AMC-2026-005001-LIFT-2-V03');
 });
