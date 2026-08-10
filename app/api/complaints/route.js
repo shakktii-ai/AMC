@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import dbConnect from '@/lib/db.js';
 import Complaint from '@/models/Complaint.js';
 import Lift from '@/models/Lift.js';
+import Customer from '@/models/Customer.js';
+import User from '@/models/User.js';
 import { authorizeApi, ROLES } from '@/lib/rbac.js';
 import { complaintSchema } from '@/validators/schemas.js';
 import { getSlaTargetMinutes, calculateSlaDueDate, calculateSlaStatus } from '@/lib/sla.js';
@@ -66,14 +69,21 @@ export async function POST(req) {
     const body = await req.json();
     const validated = complaintSchema.parse(body);
 
-    const lift = await Lift.findById(validated.liftId);
+    let liftQuery = {};
+    if (mongoose.Types.ObjectId.isValid(validated.liftId)) {
+      liftQuery = { $or: [{ _id: validated.liftId }, { liftId: validated.liftId }, { assetCode: validated.liftId }] };
+    } else {
+      liftQuery = { $or: [{ liftId: validated.liftId }, { assetCode: validated.liftId }] };
+    }
+
+    const lift = await Lift.findOne(liftQuery);
     if (!lift) {
       return NextResponse.json({ error: 'Lift not found' }, { status: 404 });
     }
 
     let customerId = lift.customerId;
     if (auth.user.role === ROLES.CUSTOMER) {
-      if (String(lift.customerId) !== String(auth.user.customerId)) {
+      if (String(lift.customerId?._id || lift.customerId) !== String(auth.user.customerId)) {
         return NextResponse.json({ error: 'Forbidden: Cannot log complaint for another customer lift' }, { status: 403 });
       }
       customerId = auth.user.customerId;
