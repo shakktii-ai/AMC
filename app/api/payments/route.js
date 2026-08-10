@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '../../../lib/db.js';
-import Payment from '../../../models/Payment.js';
-import PaymentReceipt from '../../../models/PaymentReceipt.js';
-import Invoice from '../../../models/Invoice.js';
-import { authorizeApi, ROLES } from '../../../lib/rbac.js';
-import { paymentSchema } from '../../../validators/schemas.js';
-import { logAudit } from '../../../lib/audit.js';
+import dbConnect from '@/lib/db.js';
+import Payment from '@/models/Payment.js';
+import PaymentReceipt from '@/models/PaymentReceipt.js';
+import Invoice from '@/models/Invoice.js';
+import { authorizeApi, ROLES } from '@/lib/rbac.js';
+import { paymentSchema } from '@/validators/schemas.js';
+import { logAudit } from '@/lib/audit.js';
 
 export async function GET(req) {
   try {
@@ -45,7 +45,8 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await dbConnect();
-    const auth = await authorizeApi(req, [ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.ACCOUNTANT, ROLES.CUSTOMER]);
+    // Strictly restricted to financial staff: SUPER_ADMIN, ADMIN, ACCOUNTANT (Customers view payments/receipts, cannot post manual payments!)
+    const auth = await authorizeApi(req, [ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.ACCOUNTANT]);
     if (!auth.authorized) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
@@ -56,11 +57,6 @@ export async function POST(req) {
     const invoice = await Invoice.findById(validated.invoiceId);
     if (!invoice) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
-    }
-
-    // IDOR Protection: CUSTOMER role check
-    if (auth.user.role === ROLES.CUSTOMER && String(invoice.customerId) !== String(auth.user.customerId)) {
-      return NextResponse.json({ error: 'Forbidden: Cannot make payment for another customer invoice' }, { status: 403 });
     }
 
     const currentBalance = invoice.balanceDue ?? (invoice.totalAmount - (invoice.amountPaid || 0));
@@ -87,7 +83,7 @@ export async function POST(req) {
     // Update invoice amounts and balance
     invoice.amountPaid = (invoice.amountPaid || 0) + validated.amountPaid;
     invoice.balanceDue = Math.max(0, invoice.totalAmount - invoice.amountPaid);
-    
+
     if (invoice.balanceDue <= 0) {
       invoice.status = 'PAID';
     } else {

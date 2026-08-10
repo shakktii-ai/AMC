@@ -10,12 +10,19 @@ export default function LiftsPage() {
   const [lifts, setLifts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [userRole, setUserRole] = useState('');
 
   const loadLifts = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/lifts?search=${encodeURIComponent(search)}`);
-      const data = await res.json();
+      const [liftsRes, meRes] = await Promise.all([
+        fetch(`/api/lifts?search=${encodeURIComponent(search)}`),
+        fetch('/api/auth/me'),
+      ]);
+      const data = await liftsRes.json();
+      const meData = await meRes.json();
+
+      if (meData.authenticated) setUserRole(meData.user.role);
       if (data.success) setLifts(data.lifts);
     } catch (err) {
       console.error(err);
@@ -28,20 +35,24 @@ export default function LiftsPage() {
     loadLifts();
   }, [search]);
 
+  const canRegisterLift = ['SUPER_ADMIN', 'ADMIN'].includes(userRole);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Lift Asset Management</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Lift Asset Register</h1>
           <p className="text-sm text-slate-500 mt-0.5">Asset register, technical specs, and QR code verification links.</p>
         </div>
-        <Link
-          href="/lifts/new"
-          className="inline-flex items-center space-x-2 bg-sky-600 hover:bg-sky-700 text-white font-semibold text-sm px-4 py-2.5 rounded-lg shadow-sm transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Register New Lift</span>
-        </Link>
+        {canRegisterLift && (
+          <Link
+            href="/lifts/new"
+            className="inline-flex items-center space-x-2 bg-sky-600 hover:bg-sky-700 text-white font-semibold text-sm px-4 py-2.5 rounded-lg shadow-sm transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Register New Lift</span>
+          </Link>
+        )}
       </div>
 
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-3">
@@ -57,6 +68,16 @@ export default function LiftsPage() {
 
       {loading ? (
         <LoadingSpinner message="Loading lift asset registry..." />
+      ) : lifts.length === 0 ? (
+        <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-500 space-y-3">
+          <Wrench className="w-10 h-10 text-slate-300 mx-auto" />
+          <h3 className="font-bold text-slate-800 text-base">No Lifts Found</h3>
+          <p className="text-xs max-w-sm mx-auto">
+            {userRole === 'CUSTOMER'
+              ? 'No registered lift assets found under your account. Please contact Lift Tech Admin for asset onboarding.'
+              : 'No lift assets registered yet. Click "Register New Lift" to add an asset.'}
+          </p>
+        </div>
       ) : (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <table className="w-full text-left text-sm text-slate-700">

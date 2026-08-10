@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
-import dbConnect from '../../../lib/db.js';
-import Lift from '../../../models/Lift.js';
-import { authorizeApi, ROLES } from '../../../lib/rbac.js';
-import { liftSchema } from '../../../validators/schemas.js';
-import { logAudit } from '../../../lib/audit.js';
+import dbConnect from '@/lib/db.js';
+import Lift from '@/models/Lift.js';
+import Customer from '@/models/Customer.js';
+import { authorizeApi, ROLES } from '@/lib/rbac.js';
+import { liftSchema } from '@/validators/schemas.js';
+import { logAudit } from '@/lib/audit.js';
 
 export async function GET(req) {
   try {
@@ -57,13 +58,20 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await dbConnect();
-    const auth = await authorizeApi(req, [ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.SERVICE_MANAGER]);
+    // Strictly restricted to SUPER_ADMIN & ADMIN (Customers cannot create official master assets!)
+    const auth = await authorizeApi(req, [ROLES.SUPER_ADMIN, ROLES.ADMIN]);
     if (!auth.authorized) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
     const body = await req.json();
     const validated = liftSchema.parse(body);
+
+    // Parent validation: Ensure Customer exists
+    const customer = await Customer.findById(validated.customerId);
+    if (!customer) {
+      return NextResponse.json({ error: 'Parent Customer record not found. Orphan lifts are not allowed.' }, { status: 400 });
+    }
 
     const existing = await Lift.findOne({ $or: [{ liftId: validated.liftId }, { assetCode: validated.assetCode }] });
     if (existing) {

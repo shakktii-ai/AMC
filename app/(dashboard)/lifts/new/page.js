@@ -3,11 +3,15 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Save, Wrench } from 'lucide-react';
+import { ArrowLeft, Save, Wrench, ShieldAlert } from 'lucide-react';
+import LoadingSpinner from '@/components/ui/LoadingSpinner.js';
 
 export default function NewLiftPage() {
   const router = useRouter();
   const [customers, setCustomers] = useState([]);
+  const [userRole, setUserRole] = useState('');
+  const [checkingRole, setCheckingRole] = useState(true);
+
   const [formData, setFormData] = useState({
     liftId: `LFT-${Date.now().toString().slice(-6)}`,
     assetCode: `AST-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -28,24 +32,55 @@ export default function NewLiftPage() {
     doorType: 'AUTOMATIC',
     status: 'REGISTERED',
   });
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    async function loadCustomers() {
+    async function loadData() {
       try {
-        const res = await fetch('/api/customers');
-        const data = await res.json();
-        if (data.success && data.customers.length > 0) {
-          setCustomers(data.customers);
-          setFormData((prev) => ({ ...prev, customerId: data.customers[0]._id }));
+        setCheckingRole(true);
+        const [meRes, custRes] = await Promise.all([
+          fetch('/api/auth/me'),
+          fetch('/api/customers'),
+        ]);
+
+        const meData = await meRes.json();
+        const custData = await custRes.json();
+
+        if (meData.authenticated) {
+          setUserRole(meData.user.role);
+        }
+
+        if (custData.success && custData.customers.length > 0) {
+          setCustomers(custData.customers);
+          setFormData((prev) => ({ ...prev, customerId: custData.customers[0]._id }));
         }
       } catch (err) {
         console.error(err);
+      } finally {
+        setCheckingRole(false);
       }
     }
-    loadCustomers();
+    loadData();
   }, []);
+
+  if (checkingRole) return <LoadingSpinner message="Checking operational permissions..." />;
+
+  if (!['SUPER_ADMIN', 'ADMIN'].includes(userRole)) {
+    return (
+      <div className="max-w-md mx-auto my-12 p-8 bg-white rounded-2xl border border-slate-200 shadow-md text-center space-y-4">
+        <ShieldAlert className="w-12 h-12 text-amber-500 mx-auto" />
+        <h2 className="text-xl font-bold text-slate-900">Admin Authorization Required</h2>
+        <p className="text-xs text-slate-500">
+          Official Lift Asset creation is restricted to System Admins. Customers can view assigned lifts or log breakdown requests.
+        </p>
+        <Link href="/lifts" className="inline-block px-4 py-2 bg-slate-800 text-white font-bold text-xs rounded-lg">
+          Back to Lift Register
+        </Link>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();

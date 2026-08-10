@@ -1,15 +1,16 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
-import dbConnect from '../../../lib/db.js';
-import AMC from '../../../models/AMC.js';
-import Lift from '../../../models/Lift.js';
-import Service from '../../../models/Service.js';
-import Certificate from '../../../models/Certificate.js';
-import { authorizeApi, ROLES } from '../../../lib/rbac.js';
-import { amcSchema } from '../../../validators/schemas.js';
-import { calculateAmcStatus, checkAmcOverlap } from '../../../lib/amc-service.js';
-import { generatePpmServicesForAmc } from '../../../lib/ppm-generator.js';
-import { logAudit } from '../../../lib/audit.js';
+import dbConnect from '@/lib/db.js';
+import AMC from '@/models/AMC.js';
+import Lift from '@/models/Lift.js';
+import Customer from '@/models/Customer.js';
+import Service from '@/models/Service.js';
+import Certificate from '@/models/Certificate.js';
+import { authorizeApi, ROLES } from '@/lib/rbac.js';
+import { amcSchema } from '@/validators/schemas.js';
+import { calculateAmcStatus, checkAmcOverlap } from '@/lib/amc-service.js';
+import { generatePpmServicesForAmc } from '@/lib/ppm-generator.js';
+import { logAudit } from '@/lib/audit.js';
 
 export async function GET(req) {
   try {
@@ -61,13 +62,33 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await dbConnect();
-    const auth = await authorizeApi(req, [ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.SERVICE_MANAGER]);
+    // Strictly restricted to SUPER_ADMIN & ADMIN (Only company admins can contract & activate AMCs)
+    const auth = await authorizeApi(req, [ROLES.SUPER_ADMIN, ROLES.ADMIN]);
     if (!auth.authorized) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
     const body = await req.json();
     const validated = amcSchema.parse(body);
+
+    // Parent Validation 1: Customer must exist
+    const customer = await Customer.findById(validated.customerId);
+    if (!customer) {
+      return NextResponse.json({ error: 'Customer not found' }, { status: 400 });
+    }
+
+    // Parent Validation 2: All lifts must exist AND belong to the specified Customer
+    const lifts = await Lift.find({ _id: { $in: validated.liftIds } });
+    if (lifts.length !== validated.liftIds.length) {
+      return NextResponse.json({ error: 'One or more selected lifts do not exist' }, { status: 400 });
+    }
+    const invalidLift = lifts.find((l) => String(l.customerId) !== String(validated.customerId));
+    if (invalidLift) {
+      return NextResponse.json(
+        { error: `Lift ${invalidLift.buildingName} (${invalidLift.assetCode}) does not belong to the selected customer.` },
+        { status: 400 }
+      );
+    }
 
     // CRITICAL: Overlap Guard to prevent overlapping active AMC contracts for the same lift!
     const hasOverlap = await checkAmcOverlap(AMC, validated.liftIds, validated.startDate, validated.endDate);
