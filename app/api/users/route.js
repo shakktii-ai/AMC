@@ -1,16 +1,22 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '../../../lib/db.js';
-import User from '../../../models/User.js';
-import TechnicianProfile from '../../../models/TechnicianProfile.js';
-import { authorizeApi, ROLES } from '../../../lib/rbac.js';
-import { userCreateSchema } from '../../../validators/schemas.js';
-import { hashPassword } from '../../../lib/auth.js';
-import { logAudit } from '../../../lib/audit.js';
+import dbConnect from '@/lib/db.js';
+import User from '@/models/User.js';
+import TechnicianProfile from '@/models/TechnicianProfile.js';
+import { authorizeApi, ROLES } from '@/lib/rbac.js';
+import { userCreateSchema } from '@/validators/schemas.js';
+import { hashPassword } from '@/lib/auth.js';
+import { logAudit } from '@/lib/audit.js';
 
 export async function GET(req) {
   try {
     await dbConnect();
-    const auth = await authorizeApi(req, [ROLES.SUPER_ADMIN, ROLES.ADMIN]);
+    const auth = await authorizeApi(req, [
+      ROLES.SUPER_ADMIN,
+      ROLES.ADMIN,
+      ROLES.SERVICE_MANAGER,
+      ROLES.TECHNICIAN,
+      ROLES.ACCOUNTANT,
+    ]);
     if (!auth.authorized) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
