@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '../../../lib/db.js';
-import Service from '../../../models/Service.js';
-import Lift from '../../../models/Lift.js';
-import { authorizeApi, ROLES, validateTechnicianOwnership, validateCustomerOwnership } from '../../../lib/rbac.js';
-import { logAudit } from '../../../lib/audit.js';
+import dbConnect from '@/lib/db.js';
+import Service from '@/models/Service.js';
+import Lift from '@/models/Lift.js';
+import Customer from '@/models/Customer.js';
+import User from '@/models/User.js';
+import { authorizeApi, ROLES, validateTechnicianOwnership, validateCustomerOwnership } from '@/lib/rbac.js';
+import { logAudit } from '@/lib/audit.js';
 
 export async function GET(req) {
   try {
