@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '../../../../lib/db.js';
-import Invoice from '../../../../models/Invoice.js';
-import Payment from '../../../../models/Payment.js';
-import { authorizeApi, ROLES, validateCustomerOwnership } from '../../../../lib/rbac.js';
-import { calculateInvoiceStatus } from '../../../../lib/invoice-service.js';
-import { logAudit } from '../../../../lib/audit.js';
+import mongoose from 'mongoose';
+import dbConnect from '@/lib/db.js';
+import Invoice from '@/models/Invoice.js';
+import Payment from '@/models/Payment.js';
+import { authorizeApi, ROLES, validateCustomerOwnership } from '@/lib/rbac.js';
+import { calculateInvoiceStatus } from '@/lib/invoice-service.js';
+import { logAudit } from '@/lib/audit.js';
 
 export async function GET(req, { params }) {
   try {
@@ -19,7 +20,14 @@ export async function GET(req, { params }) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
-    const invoice = await Invoice.findById(params.id).populate('customerId');
+    let query = {};
+    if (mongoose.Types.ObjectId.isValid(params.id)) {
+      query = { $or: [{ _id: params.id }, { invoiceId: params.id }, { invoiceNumber: params.id }] };
+    } else {
+      query = { $or: [{ invoiceId: params.id }, { invoiceNumber: params.id }] };
+    }
+
+    const invoice = await Invoice.findOne(query).populate('customerId');
     if (!invoice) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }
@@ -49,7 +57,15 @@ export async function PUT(req, { params }) {
     }
 
     const body = await req.json();
-    const invoice = await Invoice.findById(params.id);
+
+    let query = {};
+    if (mongoose.Types.ObjectId.isValid(params.id)) {
+      query = { $or: [{ _id: params.id }, { invoiceId: params.id }, { invoiceNumber: params.id }] };
+    } else {
+      query = { $or: [{ invoiceId: params.id }, { invoiceNumber: params.id }] };
+    }
+
+    const invoice = await Invoice.findOne(query);
     if (!invoice) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }

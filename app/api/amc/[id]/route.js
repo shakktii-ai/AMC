@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
-import dbConnect from '../../../../lib/db.js';
-import AMC from '../../../../models/AMC.js';
-import Lift from '../../../../models/Lift.js';
-import Service from '../../../../models/Service.js';
-import Certificate from '../../../../models/Certificate.js';
-import { authorizeApi, ROLES, validateCustomerOwnership } from '../../../../lib/rbac.js';
-import { calculateAmcStatus, checkAmcOverlap } from '../../../../lib/amc-service.js';
-import { generatePpmServicesForAmc } from '../../../../lib/ppm-generator.js';
-import { logAudit } from '../../../../lib/audit.js';
+import mongoose from 'mongoose';
+import dbConnect from '@/lib/db.js';
+import AMC from '@/models/AMC.js';
+import Lift from '@/models/Lift.js';
+import Service from '@/models/Service.js';
+import Certificate from '@/models/Certificate.js';
+import { authorizeApi, ROLES, validateCustomerOwnership } from '@/lib/rbac.js';
+import { calculateAmcStatus, checkAmcOverlap } from '@/lib/amc-service.js';
+import { generatePpmServicesForAmc } from '@/lib/ppm-generator.js';
+import { logAudit } from '@/lib/audit.js';
 
 export async function GET(req, { params }) {
   try {
@@ -24,7 +25,14 @@ export async function GET(req, { params }) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
-    const amc = await AMC.findById(params.id)
+    let query = {};
+    if (mongoose.Types.ObjectId.isValid(params.id)) {
+      query = { $or: [{ _id: params.id }, { amcId: params.id }, { contractNumber: params.id }] };
+    } else {
+      query = { $or: [{ amcId: params.id }, { contractNumber: params.id }] };
+    }
+
+    const amc = await AMC.findOne(query)
       .populate('customerId')
       .populate('liftIds')
       .populate('renewalOf');
@@ -63,7 +71,15 @@ export async function PUT(req, { params }) {
     }
 
     const body = await req.json();
-    const amc = await AMC.findById(params.id);
+
+    let query = {};
+    if (mongoose.Types.ObjectId.isValid(params.id)) {
+      query = { $or: [{ _id: params.id }, { amcId: params.id }, { contractNumber: params.id }] };
+    } else {
+      query = { $or: [{ amcId: params.id }, { contractNumber: params.id }] };
+    }
+
+    const amc = await AMC.findOne(query);
     if (!amc) {
       return NextResponse.json({ error: 'AMC record not found' }, { status: 404 });
     }

@@ -1,16 +1,17 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '../../../../lib/db.js';
-import Customer from '../../../../models/Customer.js';
-import Lift from '../../../../models/Lift.js';
-import AMC from '../../../../models/AMC.js';
-import Service from '../../../../models/Service.js';
-import Complaint from '../../../../models/Complaint.js';
-import Invoice from '../../../../models/Invoice.js';
-import Payment from '../../../../models/Payment.js';
-import Certificate from '../../../../models/Certificate.js';
-import Document from '../../../../models/Document.js';
-import { authorizeApi, ROLES, validateCustomerOwnership } from '../../../../lib/rbac.js';
-import { logAudit } from '../../../../lib/audit.js';
+import mongoose from 'mongoose';
+import dbConnect from '@/lib/db.js';
+import Customer from '@/models/Customer.js';
+import Lift from '@/models/Lift.js';
+import AMC from '@/models/AMC.js';
+import Service from '@/models/Service.js';
+import Complaint from '@/models/Complaint.js';
+import Invoice from '@/models/Invoice.js';
+import Payment from '@/models/Payment.js';
+import Certificate from '@/models/Certificate.js';
+import Document from '@/models/Document.js';
+import { authorizeApi, ROLES, validateCustomerOwnership } from '@/lib/rbac.js';
+import { logAudit } from '@/lib/audit.js';
 
 export async function GET(req, { params }) {
   try {
@@ -26,7 +27,14 @@ export async function GET(req, { params }) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
-    const customer = await Customer.findById(params.id);
+    let query = {};
+    if (mongoose.Types.ObjectId.isValid(params.id)) {
+      query = { $or: [{ _id: params.id }, { customerId: params.id }] };
+    } else {
+      query = { customerId: params.id };
+    }
+
+    const customer = await Customer.findOne(query);
     if (!customer) {
       return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
     }
@@ -74,7 +82,15 @@ export async function PUT(req, { params }) {
     }
 
     const body = await req.json();
-    const customer = await Customer.findByIdAndUpdate(params.id, body, { new: true, runValidators: true });
+
+    let query = {};
+    if (mongoose.Types.ObjectId.isValid(params.id)) {
+      query = { $or: [{ _id: params.id }, { customerId: params.id }] };
+    } else {
+      query = { customerId: params.id };
+    }
+
+    const customer = await Customer.findOneAndUpdate(query, body, { new: true, runValidators: true });
     if (!customer) {
       return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
     }
