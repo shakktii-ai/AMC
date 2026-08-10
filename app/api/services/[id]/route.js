@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import dbConnect from '@/lib/db.js';
 import Service from '@/models/Service.js';
 import ServiceReport from '@/models/ServiceReport.js';
@@ -19,7 +20,14 @@ export async function GET(req, { params }) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
-    const service = await Service.findById(params.id)
+    let query = {};
+    if (mongoose.Types.ObjectId.isValid(params.id)) {
+      query = { $or: [{ _id: params.id }, { serviceId: params.id }] };
+    } else {
+      query = { serviceId: params.id };
+    }
+
+    const service = await Service.findOne(query)
       .populate('customerId')
       .populate('liftId')
       .populate('amcId')
@@ -56,7 +64,15 @@ export async function PUT(req, { params }) {
     }
 
     const body = await req.json();
-    const service = await Service.findById(params.id);
+
+    let query = {};
+    if (mongoose.Types.ObjectId.isValid(params.id)) {
+      query = { $or: [{ _id: params.id }, { serviceId: params.id }] };
+    } else {
+      query = { serviceId: params.id };
+    }
+
+    const service = await Service.findOne(query);
     if (!service) {
       return NextResponse.json({ error: 'Service not found' }, { status: 404 });
     }

@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '../../../../lib/db.js';
-import Lift from '../../../../models/Lift.js';
-import Warranty from '../../../../models/Warranty.js';
-import AMC from '../../../../models/AMC.js';
-import Service from '../../../../models/Service.js';
-import Complaint from '../../../../models/Complaint.js';
-import { authorizeApi, ROLES, validateCustomerOwnership } from '../../../../lib/rbac.js';
-import { logAudit } from '../../../../lib/audit.js';
+import mongoose from 'mongoose';
+import dbConnect from '@/lib/db.js';
+import Lift from '@/models/Lift.js';
+import Warranty from '@/models/Warranty.js';
+import AMC from '@/models/AMC.js';
+import Service from '@/models/Service.js';
+import Complaint from '@/models/Complaint.js';
+import { authorizeApi, ROLES, validateCustomerOwnership } from '@/lib/rbac.js';
+import { logAudit } from '@/lib/audit.js';
 
 export async function GET(req, { params }) {
   try {
@@ -23,7 +24,14 @@ export async function GET(req, { params }) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
-    const lift = await Lift.findById(params.id).populate('customerId');
+    let query = {};
+    if (mongoose.Types.ObjectId.isValid(params.id)) {
+      query = { $or: [{ _id: params.id }, { liftId: params.id }, { assetCode: params.id }] };
+    } else {
+      query = { $or: [{ liftId: params.id }, { assetCode: params.id }] };
+    }
+
+    const lift = await Lift.findOne(query).populate('customerId');
     if (!lift) {
       return NextResponse.json({ error: 'Lift not found' }, { status: 404 });
     }
@@ -62,7 +70,15 @@ export async function PUT(req, { params }) {
     }
 
     const body = await req.json();
-    const lift = await Lift.findByIdAndUpdate(params.id, body, { new: true, runValidators: true });
+
+    let query = {};
+    if (mongoose.Types.ObjectId.isValid(params.id)) {
+      query = { $or: [{ _id: params.id }, { liftId: params.id }, { assetCode: params.id }] };
+    } else {
+      query = { $or: [{ liftId: params.id }, { assetCode: params.id }] };
+    }
+
+    const lift = await Lift.findOneAndUpdate(query, body, { new: true, runValidators: true });
     if (!lift) {
       return NextResponse.json({ error: 'Lift not found' }, { status: 404 });
     }

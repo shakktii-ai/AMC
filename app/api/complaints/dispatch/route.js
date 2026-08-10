@@ -18,14 +18,23 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const targetZone = searchParams.get('zone') || '';
 
-    const technicians = await User.find({ role: ROLES.TECHNICIAN, status: 'ACTIVE' }).select('name email phone');
+    // Query active technicians (or technicians where status is not INACTIVE)
+    const technicians = await User.find({
+      role: ROLES.TECHNICIAN,
+      status: { $ne: 'INACTIVE' },
+    }).select('name email phone');
+
     const profiles = await TechnicianProfile.find({});
 
     const profileMap = new Map();
-    profiles.forEach((p) => profileMap.set(p.userId.toString(), p));
+    profiles.forEach((p) => {
+      if (p.userId) {
+        profileMap.set(p.userId.toString(), p);
+      }
+    });
 
     const ranked = technicians.map((tech) => {
-      const profile = profileMap.get(tech._id.toString()) || { zone: 'DEFAULT_ZONE', status: 'AVAILABLE', activeJobsCount: 0 };
+      const profile = profileMap.get(tech._id.toString()) || { zone: 'FIELD_ZONE', status: 'AVAILABLE', activeJobsCount: 0 };
       const sameZone = targetZone ? profile.zone.toLowerCase() === targetZone.toLowerCase() : false;
 
       let score = 0;
@@ -34,13 +43,13 @@ export async function GET(req) {
       score -= (profile.activeJobsCount || 0) * 10;
 
       return {
-        techId: tech._id,
+        techId: tech._id.toString(),
         name: tech.name,
         email: tech.email,
         phone: tech.phone,
-        zone: profile.zone,
-        status: profile.status,
-        activeJobsCount: profile.activeJobsCount,
+        zone: profile.zone || 'FIELD_ZONE',
+        status: profile.status || 'AVAILABLE',
+        activeJobsCount: profile.activeJobsCount || 0,
         score,
       };
     });
@@ -79,7 +88,8 @@ export async function POST(req) {
 
     await TechnicianProfile.findOneAndUpdate(
       { userId: techUser._id },
-      { $inc: { activeJobsCount: 1 } }
+      { $inc: { activeJobsCount: 1 } },
+      { upsert: true }
     );
 
     await createNotification({

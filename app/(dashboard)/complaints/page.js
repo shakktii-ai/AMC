@@ -12,6 +12,7 @@ export default function ComplaintsPage() {
   const [lifts, setLifts] = useState([]);
   const [technicians, setTechnicians] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [dispatchLoading, setDispatchLoading] = useState(false);
 
   const [isNewOpen, setIsNewOpen] = useState(false);
   const [isDispatchOpen, setIsDispatchOpen] = useState(false);
@@ -68,21 +69,30 @@ export default function ComplaintsPage() {
 
   const openDispatchModal = async (complaint) => {
     setSelectedComplaint(complaint);
+    setTechnicians([]);
+    setDispatchTechId('');
+    setIsDispatchOpen(true);
+    setDispatchLoading(true);
+
     try {
       const res = await fetch('/api/complaints/dispatch');
       const data = await res.json();
-      if (data.success && data.technicians.length > 0) {
+      if (data.success && data.technicians) {
         setTechnicians(data.technicians);
-        setDispatchTechId(data.technicians[0].techId);
+        if (data.technicians.length > 0) {
+          setDispatchTechId(data.technicians[0].techId);
+        }
       }
-      setIsDispatchOpen(true);
     } catch (err) {
       console.error(err);
+    } finally {
+      setDispatchLoading(false);
     }
   };
 
   const handleDispatch = async (e) => {
     e.preventDefault();
+    if (!dispatchTechId) return;
     try {
       const res = await fetch('/api/complaints/dispatch', {
         method: 'POST',
@@ -249,26 +259,40 @@ export default function ComplaintsPage() {
 
       {/* Technician Dispatch Modal */}
       <Modal isOpen={isDispatchOpen} onClose={() => setIsDispatchOpen(false)} title={`Technician Dispatch Engine - ${selectedComplaint?.complaintId}`}>
-        <form onSubmit={handleDispatch} className="space-y-4">
-          <p className="text-xs text-slate-500">Ranked by zone match, availability status, and lowest active workload.</p>
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Ranked Technicians</label>
-            <select
-              value={dispatchTechId}
-              onChange={(e) => setDispatchTechId(e.target.value)}
-              className="w-full text-sm p-2.5 border rounded-lg"
+        {dispatchLoading ? (
+          <LoadingSpinner message="Ranking and fetching active technicians..." />
+        ) : (
+          <form onSubmit={handleDispatch} className="space-y-4">
+            <p className="text-xs text-slate-500">Ranked by zone match, availability status, and lowest active workload.</p>
+            {technicians.length === 0 ? (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs font-semibold">
+                No active field technicians available in system. Please register a technician in User Directory.
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Ranked Technicians</label>
+                <select
+                  value={dispatchTechId}
+                  onChange={(e) => setDispatchTechId(e.target.value)}
+                  className="w-full text-sm p-2.5 border rounded-lg"
+                >
+                  {technicians.map((t) => (
+                    <option key={t.techId} value={t.techId}>
+                      {t.name} ({t.zone}) - Active Jobs: {t.activeJobsCount} [{t.status}]
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <button
+              type="submit"
+              disabled={technicians.length === 0}
+              className="w-full py-2.5 bg-emerald-600 text-white font-bold rounded-lg text-sm hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {technicians.map((t) => (
-                <option key={t.techId} value={t.techId}>
-                  {t.name} ({t.zone}) - Active Jobs: {t.activeJobsCount} [{t.status}]
-                </option>
-              ))}
-            </select>
-          </div>
-          <button type="submit" className="w-full py-2.5 bg-emerald-600 text-white font-bold rounded-lg text-sm hover:bg-emerald-700">
-            Confirm & Dispatch Technician
-          </button>
-        </form>
+              Confirm & Dispatch Technician
+            </button>
+          </form>
+        )}
       </Modal>
     </div>
   );

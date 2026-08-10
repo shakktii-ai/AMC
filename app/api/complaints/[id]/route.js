@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import dbConnect from '@/lib/db.js';
 import Complaint from '@/models/Complaint.js';
 import Lift from '@/models/Lift.js';
@@ -21,7 +22,14 @@ export async function GET(req, { params }) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
-    const complaint = await Complaint.findById(params.id)
+    let query = {};
+    if (mongoose.Types.ObjectId.isValid(params.id)) {
+      query = { $or: [{ _id: params.id }, { complaintId: params.id }] };
+    } else {
+      query = { complaintId: params.id };
+    }
+
+    const complaint = await Complaint.findOne(query)
       .populate('customerId')
       .populate('liftId')
       .populate('assignedTechnician', 'name phone email');
@@ -60,7 +68,15 @@ export async function PUT(req, { params }) {
     }
 
     const body = await req.json();
-    const complaint = await Complaint.findById(params.id);
+
+    let query = {};
+    if (mongoose.Types.ObjectId.isValid(params.id)) {
+      query = { $or: [{ _id: params.id }, { complaintId: params.id }] };
+    } else {
+      query = { complaintId: params.id };
+    }
+
+    const complaint = await Complaint.findOne(query);
     if (!complaint) {
       return NextResponse.json({ error: 'Complaint not found' }, { status: 404 });
     }
