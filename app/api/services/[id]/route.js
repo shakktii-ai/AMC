@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '../../../../lib/db.js';
-import Service from '../../../../models/Service.js';
-import ServiceReport from '../../../../models/ServiceReport.js';
-import { authorizeApi, ROLES, validateTechnicianOwnership, validateCustomerOwnership } from '../../../../lib/rbac.js';
-import { logAudit } from '../../../../lib/audit.js';
+import dbConnect from '@/lib/db.js';
+import Service from '@/models/Service.js';
+import ServiceReport from '@/models/ServiceReport.js';
+import { authorizeApi, ROLES, validateTechnicianOwnership, validateCustomerOwnership } from '@/lib/rbac.js';
+import { logAudit } from '@/lib/audit.js';
 
 export async function GET(req, { params }) {
   try {

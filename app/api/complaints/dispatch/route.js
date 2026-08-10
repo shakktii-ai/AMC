@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '../../../../lib/db.js';
-import Complaint from '../../../../models/Complaint.js';
-import User from '../../../../models/User.js';
-import TechnicianProfile from '../../../../models/TechnicianProfile.js';
-import { authorizeApi, ROLES } from '../../../../lib/rbac.js';
-import { createNotification } from '../../../../lib/notification-service.js';
-import { logAudit } from '../../../../lib/audit.js';
+import dbConnect from '@/lib/db.js';
+import Complaint from '@/models/Complaint.js';
+import User from '@/models/User.js';
+import TechnicianProfile from '@/models/TechnicianProfile.js';
+import { authorizeApi, ROLES } from '@/lib/rbac.js';
+import { createNotification } from '@/lib/notification-service.js';
+import { logAudit } from '@/lib/audit.js';
 
 export async function GET(req) {
   try {

@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
-import dbConnect from '../../../lib/db.js';
-import Warranty from '../../../models/Warranty.js';
-import Lift from '../../../models/Lift.js';
-import Certificate from '../../../models/Certificate.js';
-import { authorizeApi, ROLES } from '../../../lib/rbac.js';
-import { calculateWarrantyStatus } from '../../../lib/warranty-service.js';
-import { logAudit } from '../../../lib/audit.js';
+import dbConnect from '@/lib/db.js';
+import Warranty from '@/models/Warranty.js';
+import Lift from '@/models/Lift.js';
+import Certificate from '@/models/Certificate.js';
+import { authorizeApi, ROLES } from '@/lib/rbac.js';
+import { calculateWarrantyStatus } from '@/lib/warranty-service.js';
+import { logAudit } from '@/lib/audit.js';
 
 export async function GET(req) {
   try {
@@ -56,7 +56,8 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await dbConnect();
-    const auth = await authorizeApi(req, [ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.SERVICE_MANAGER]);
+    // Strictly restricted to SUPER_ADMIN & ADMIN (Only system admins register/activate warranties)
+    const auth = await authorizeApi(req, [ROLES.SUPER_ADMIN, ROLES.ADMIN]);
     if (!auth.authorized) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }

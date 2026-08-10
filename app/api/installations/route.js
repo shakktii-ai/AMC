@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '../../../lib/db.js';
-import Installation from '../../../models/Installation.js';
-import Lift from '../../../models/Lift.js';
-import { authorizeApi, ROLES } from '../../../lib/rbac.js';
-import { logAudit } from '../../../lib/audit.js';
+import dbConnect from '@/lib/db.js';
+import Installation from '@/models/Installation.js';
+import Lift from '@/models/Lift.js';
+import { authorizeApi, ROLES } from '@/lib/rbac.js';
+import { logAudit } from '@/lib/audit.js';
 
 export async function GET(req) {
   try {

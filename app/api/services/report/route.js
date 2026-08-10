@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
-import dbConnect from '../../../../lib/db.js';
-import ServiceReport from '../../../../models/ServiceReport.js';
-import Service from '../../../../models/Service.js';
-import Complaint from '../../../../models/Complaint.js';
-import Certificate from '../../../../models/Certificate.js';
-import { authorizeApi, ROLES } from '../../../../lib/rbac.js';
-import { serviceReportSchema } from '../../../../validators/schemas.js';
-import { logAudit } from '../../../../lib/audit.js';
+import dbConnect from '@/lib/db.js';
+import ServiceReport from '@/models/ServiceReport.js';
+import Service from '@/models/Service.js';
+import Complaint from '@/models/Complaint.js';
+import Certificate from '@/models/Certificate.js';
+import { authorizeApi, ROLES } from '@/lib/rbac.js';
+import { serviceReportSchema } from '@/validators/schemas.js';
+import { logAudit } from '@/lib/audit.js';
 
 export async function POST(req) {
   try {
@@ -26,11 +26,21 @@ export async function POST(req) {
     if (validated.serviceId) {
       service = await Service.findById(validated.serviceId);
       if (!service) return NextResponse.json({ error: 'Service not found' }, { status: 404 });
+
+      // Ownership Check: Technician must be assigned to this service
+      if (auth.user.role === ROLES.TECHNICIAN && String(service.technicianId) !== String(auth.user.id)) {
+        return NextResponse.json({ error: 'Forbidden: Cannot submit report for a service assigned to another technician' }, { status: 403 });
+      }
     }
 
     if (validated.complaintId) {
       complaint = await Complaint.findById(validated.complaintId);
       if (!complaint) return NextResponse.json({ error: 'Complaint not found' }, { status: 404 });
+
+      // Ownership Check: Technician must be assigned to this complaint
+      if (auth.user.role === ROLES.TECHNICIAN && String(complaint.assignedTechnician) !== String(auth.user.id)) {
+        return NextResponse.json({ error: 'Forbidden: Cannot submit report for a complaint assigned to another technician' }, { status: 403 });
+      }
     }
 
     const reportId = `RPT-${Date.now().toString().slice(-6)}`;

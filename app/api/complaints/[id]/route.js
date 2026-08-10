@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '../../../../lib/db.js';
-import Complaint from '../../../../models/Complaint.js';
-import Lift from '../../../../models/Lift.js';
-import ServiceReport from '../../../../models/ServiceReport.js';
-import { authorizeApi, ROLES, validateCustomerOwnership, validateTechnicianOwnership } from '../../../../lib/rbac.js';
-import { calculateSlaStatus } from '../../../../lib/sla.js';
-import { logAudit } from '../../../../lib/audit.js';
+import dbConnect from '@/lib/db.js';
+import Complaint from '@/models/Complaint.js';
+import Lift from '@/models/Lift.js';
+import ServiceReport from '@/models/ServiceReport.js';
+import { authorizeApi, ROLES, validateCustomerOwnership, validateTechnicianOwnership } from '@/lib/rbac.js';
+import { calculateSlaStatus } from '@/lib/sla.js';
+import { logAudit } from '@/lib/audit.js';
 
 export async function GET(req, { params }) {
   try {

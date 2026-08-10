@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '../../../../lib/db.js';
-import Warranty from '../../../../models/Warranty.js';
-import { authorizeApi, ROLES } from '../../../../lib/rbac.js';
-import { calculateWarrantyStatus } from '../../../../lib/warranty-service.js';
-import { logAudit } from '../../../../lib/audit.js';
+import dbConnect from '@/lib/db.js';
+import Warranty from '@/models/Warranty.js';
+import { authorizeApi, ROLES } from '@/lib/rbac.js';
+import { calculateWarrantyStatus } from '@/lib/warranty-service.js';
+import { logAudit } from '@/lib/audit.js';
 
 export async function GET(req, { params }) {
   try {
@@ -40,7 +40,8 @@ export async function GET(req, { params }) {
 export async function PUT(req, { params }) {
   try {
     await dbConnect();
-    const auth = await authorizeApi(req, [ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.SERVICE_MANAGER]);
+    // Strictly restricted to SUPER_ADMIN & ADMIN
+    const auth = await authorizeApi(req, [ROLES.SUPER_ADMIN, ROLES.ADMIN]);
     if (!auth.authorized) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
