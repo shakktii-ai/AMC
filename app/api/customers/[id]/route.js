@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import dbConnect from '@/lib/db.js';
 import Customer from '@/models/Customer.js';
+import User from '@/models/User.js';
 import Lift from '@/models/Lift.js';
 import AMC from '@/models/AMC.js';
 import Service from '@/models/Service.js';
@@ -11,6 +12,7 @@ import Payment from '@/models/Payment.js';
 import Certificate from '@/models/Certificate.js';
 import Document from '@/models/Document.js';
 import { authorizeApi, ROLES, validateCustomerOwnership } from '@/lib/rbac.js';
+import { hashPassword } from '@/lib/auth.js';
 import { logAudit } from '@/lib/audit.js';
 
 export async function GET(req, { params }) {
@@ -44,6 +46,9 @@ export async function GET(req, { params }) {
       return NextResponse.json({ error: 'Forbidden: Access denied to customer details' }, { status: 403 });
     }
 
+    // Fetch linked login account
+    const userAccount = await User.findOne({ role: ROLES.CUSTOMER, customerId: customer._id }).select('email role status createdAt');
+
     // Fetch related records
     const [lifts, amcs, services, complaints, invoices, payments, certificates, documents] = await Promise.all([
       Lift.find({ customerId: customer._id }),
@@ -59,6 +64,7 @@ export async function GET(req, { params }) {
     return NextResponse.json({
       success: true,
       customer,
+      userAccount: userAccount ? { email: userAccount.email, role: userAccount.role, status: userAccount.status, createdAt: userAccount.createdAt } : null,
       lifts,
       amcs,
       services,
@@ -90,10 +96,60 @@ export async function PUT(req, { params }) {
       query = { customerId: params.id };
     }
 
-    const customer = await Customer.findOneAndUpdate(query, body, { new: true, runValidators: true });
+    const customer = await Customer.findOne(query);
     if (!customer) {
       return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
     }
+
+    // Action: Create Login Account for existing customer
+    if (body.action === 'CREATE_LOGIN') {
+      const loginEmail = (body.loginEmail || customer.email).toLowerCase().trim();
+      const rawPassword = body.password;
+
+      if (!rawPassword || rawPassword.trim().length < 6) {
+        return NextResponse.json({ error: 'Password must be at least 6 characters long' }, { status: 400 });
+      }
+
+      // Check if user already exists with email
+      const existingEmailUser = await User.findOne({ email: loginEmail });
+      if (existingEmailUser) {
+        return NextResponse.json({ error: `A user account with email "${loginEmail}" already exists.` }, { status: 400 });
+      }
+
+      // Check if user is already linked to this customer
+      const existingCustomerUser = await User.findOne({ role: ROLES.CUSTOMER, customerId: customer._id });
+      if (existingCustomerUser) {
+        return NextResponse.json({ error: 'This customer already has an active login account.' }, { status: 400 });
+      }
+
+      const hashedPassword = await hashPassword(rawPassword);
+      const newUser = await User.create({
+        name: customer.name,
+        email: loginEmail,
+        password: hashedPassword,
+        role: ROLES.CUSTOMER,
+        status: 'ACTIVE',
+        customerId: customer._id,
+      });
+
+      await logAudit({
+        userId: auth.user.id,
+        action: 'CREATE_CUSTOMER_LOGIN',
+        entity: 'User',
+        entityId: newUser._id.toString(),
+        metadata: { customerId: customer.customerId, email: newUser.email },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: 'Customer login account created successfully',
+        userAccount: { email: newUser.email, role: newUser.role, status: newUser.status },
+      });
+    }
+
+    // Normal customer details update (Does NOT automatically recreate User account)
+    Object.assign(customer, body);
+    await customer.save();
 
     await logAudit({
       userId: auth.user.id,

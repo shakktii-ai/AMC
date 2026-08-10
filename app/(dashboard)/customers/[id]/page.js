@@ -17,6 +17,11 @@ import {
   Mail,
   Phone,
   MapPin,
+  Lock,
+  UserCheck,
+  UserPlus,
+  X,
+  CheckCircle,
 } from 'lucide-react';
 import Badge from '@/components/ui/Badge.js';
 import LoadingSpinner from '@/components/ui/LoadingSpinner.js';
@@ -27,27 +32,66 @@ export default function CustomerDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('lifts');
 
-  useEffect(() => {
-    async function loadCustomer() {
-      try {
-        const res = await fetch(`/api/customers/${id}`);
-        const result = await res.json();
-        if (result.success) {
-          setData(result);
+  // Create Login Modal state
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [modalLoginEmail, setModalLoginEmail] = useState('');
+  const [modalPassword, setModalPassword] = useState('Test@12345');
+  const [modalSubmitting, setModalSubmitting] = useState(false);
+  const [modalError, setModalError] = useState('');
+
+  const loadCustomer = async () => {
+    try {
+      const res = await fetch(`/api/customers/${id}`);
+      const result = await res.json();
+      if (result.success) {
+        setData(result);
+        if (result.customer) {
+          setModalLoginEmail(result.customer.email || '');
         }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
       }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
     if (id) loadCustomer();
   }, [id]);
+
+  const handleCreateLoginAccount = async (e) => {
+    e.preventDefault();
+    setModalSubmitting(true);
+    setModalError('');
+
+    try {
+      const res = await fetch(`/api/customers/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'CREATE_LOGIN',
+          loginEmail: modalLoginEmail,
+          password: modalPassword,
+        }),
+      });
+
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Failed to create customer login account');
+
+      setShowLoginModal(false);
+      await loadCustomer();
+    } catch (err) {
+      setModalError(err.message);
+    } finally {
+      setModalSubmitting(false);
+    }
+  };
 
   if (loading) return <LoadingSpinner message="Loading customer portal records..." />;
   if (!data || !data.customer) return <div className="p-8 text-center text-slate-500">Customer record not found.</div>;
 
-  const { customer, lifts, amcs, services, complaints, invoices, payments, certificates, documents } = data;
+  const { customer, userAccount, lifts, amcs, services, complaints, invoices, payments, certificates, documents } = data;
 
   const tabs = [
     { id: 'lifts', label: `Lifts (${lifts?.length || 0})`, icon: Wrench },
@@ -62,40 +106,110 @@ export default function CustomerDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center space-x-3">
-        <Link href="/customers" className="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <div className="flex items-center space-x-2">
-            <h1 className="text-2xl font-bold text-slate-900">{customer.name}</h1>
-            <Badge variant={customer.status === 'ACTIVE' ? 'success' : 'danger'}>{customer.status}</Badge>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <Link href="/customers" className="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <div>
+            <div className="flex items-center space-x-2">
+              <h1 className="text-2xl font-bold text-slate-900">{customer.name}</h1>
+              <Badge variant={customer.status === 'ACTIVE' ? 'success' : 'danger'}>{customer.status}</Badge>
+            </div>
+            <p className="text-sm text-slate-500">{customer.companyName || 'Individual Customer'} • ID: {customer.customerId}</p>
           </div>
-          <p className="text-sm text-slate-500">{customer.companyName || 'Individual Customer'} • ID: {customer.customerId}</p>
         </div>
+
+        {!userAccount && (
+          <button
+            type="button"
+            onClick={() => {
+              setModalLoginEmail(customer.email || '');
+              setModalPassword('Test@12345');
+              setModalError('');
+              setShowLoginModal(true);
+            }}
+            className="inline-flex items-center space-x-2 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs px-4 py-2.5 rounded-lg shadow-sm transition-colors"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Create Login Account</span>
+          </button>
+        )}
       </div>
 
-      {/* Customer Info Card */}
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="flex items-start space-x-3">
-          <Mail className="w-5 h-5 text-slate-400 mt-0.5" />
-          <div>
-            <div className="text-xs font-bold text-slate-400 uppercase">Email Address</div>
-            <div className="text-sm font-semibold text-slate-800">{customer.email}</div>
+      {/* Customer Info Card & Login Account Card */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div className="flex items-start space-x-3">
+            <Mail className="w-5 h-5 text-slate-400 mt-0.5" />
+            <div>
+              <div className="text-xs font-bold text-slate-400 uppercase">Contact Email</div>
+              <div className="text-sm font-semibold text-slate-800">{customer.email}</div>
+            </div>
+          </div>
+          <div className="flex items-start space-x-3">
+            <Phone className="w-5 h-5 text-slate-400 mt-0.5" />
+            <div>
+              <div className="text-xs font-bold text-slate-400 uppercase">Phone Contact</div>
+              <div className="text-sm font-semibold text-slate-800">{customer.phone}</div>
+            </div>
+          </div>
+          <div className="sm:col-span-2 flex items-start space-x-3">
+            <MapPin className="w-5 h-5 text-slate-400 mt-0.5" />
+            <div>
+              <div className="text-xs font-bold text-slate-400 uppercase">Location Address</div>
+              <div className="text-sm text-slate-800">{customer.address}, {customer.city}, {customer.state} - {customer.pincode}</div>
+            </div>
           </div>
         </div>
-        <div className="flex items-start space-x-3">
-          <Phone className="w-5 h-5 text-slate-400 mt-0.5" />
-          <div>
-            <div className="text-xs font-bold text-slate-400 uppercase">Phone Contact</div>
-            <div className="text-sm font-semibold text-slate-800">{customer.phone}</div>
-          </div>
-        </div>
-        <div className="flex items-start space-x-3">
-          <MapPin className="w-5 h-5 text-slate-400 mt-0.5" />
-          <div>
-            <div className="text-xs font-bold text-slate-400 uppercase">Location Address</div>
-            <div className="text-sm text-slate-800">{customer.address}, {customer.city}, {customer.state} - {customer.pincode}</div>
+
+        {/* LOGIN ACCOUNT INFORMATION CARD */}
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-3 flex flex-col justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center space-x-2 text-slate-900 border-b pb-2">
+              <Lock className="w-4 h-4 text-sky-600" />
+              <h3 className="text-xs font-bold uppercase tracking-wider">Login Account Info</h3>
+            </div>
+
+            {userAccount ? (
+              <div className="space-y-1.5 text-xs">
+                <div>
+                  <span className="text-slate-400 font-semibold">Login Email: </span>
+                  <span className="font-bold text-slate-900">{userAccount.email}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold">Role: </span>
+                  <span className="font-bold text-sky-600">{userAccount.role}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold">Status: </span>
+                  <span className="font-bold text-emerald-600">{userAccount.status}</span>
+                </div>
+                <div className="pt-1">
+                  <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold inline-flex items-center space-x-1">
+                    <CheckCircle className="w-3 h-3 text-emerald-600" />
+                    <span>Portal Access Enabled</span>
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2 py-1">
+                <p className="text-xs text-slate-500">No portal login account has been provisioned for this customer yet.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalLoginEmail(customer.email || '');
+                    setModalPassword('Test@12345');
+                    setModalError('');
+                    setShowLoginModal(true);
+                  }}
+                  className="w-full py-2 bg-sky-50 text-sky-700 border border-sky-200 font-bold text-xs rounded-lg hover:bg-sky-100 transition-colors flex items-center justify-center space-x-1.5"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>Provision Login Account</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -284,6 +398,72 @@ export default function CustomerDetailPage() {
           </div>
         )}
       </div>
+
+      {/* CREATE LOGIN ACCOUNT MODAL FOR EXISTING CUSTOMERS */}
+      {showLoginModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl border">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center space-x-2 text-slate-900">
+                <Lock className="w-5 h-5 text-sky-600" />
+                <h3 className="text-base font-bold">Provision Customer Login Account</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowLoginModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {modalError && <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">{modalError}</div>}
+
+            <form onSubmit={handleCreateLoginAccount} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Login Email *</label>
+                <input
+                  type="email"
+                  required
+                  value={modalLoginEmail}
+                  onChange={(e) => setModalLoginEmail(e.target.value)}
+                  className="w-full text-sm p-2.5 border rounded-lg"
+                  placeholder="customer@example.com"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Password *</label>
+                <input
+                  type="password"
+                  required
+                  value={modalPassword}
+                  onChange={(e) => setModalPassword(e.target.value)}
+                  className="w-full text-sm p-2.5 border rounded-lg"
+                  placeholder="Min 6 characters"
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setShowLoginModal(false)}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={modalSubmitting}
+                  className="px-5 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-lg shadow-sm transition-colors"
+                >
+                  {modalSubmitting ? 'Creating...' : 'Create Account'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

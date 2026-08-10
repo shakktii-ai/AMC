@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Save, Building2 } from 'lucide-react';
+import { ArrowLeft, Save, Lock, UserCheck } from 'lucide-react';
 
 export default function NewCustomerPage() {
   const router = useRouter();
@@ -20,7 +20,12 @@ export default function NewCustomerPage() {
     pincode: '400001',
     gstin: '',
     status: 'ACTIVE',
+    createLogin: true,
+    loginEmail: '',
+    password: '',
+    confirmPassword: '',
   });
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -29,11 +34,40 @@ export default function NewCustomerPage() {
     setLoading(true);
     setError('');
 
+    const targetLoginEmail = (formData.loginEmail || formData.email).trim();
+
+    if (formData.createLogin) {
+      if (!targetLoginEmail) {
+        setError('Login email address is required for user account creation.');
+        setLoading(false);
+        return;
+      }
+      const pwd = formData.password || 'Test@12345';
+      const confirmPwd = formData.confirmPassword || 'Test@12345';
+
+      if (pwd.length < 6) {
+        setError('Password must be at least 6 characters long.');
+        setLoading(false);
+        return;
+      }
+      if (pwd !== confirmPwd) {
+        setError('Confirm Password does not match Password.');
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
+      const payload = {
+        ...formData,
+        loginEmail: targetLoginEmail,
+        password: formData.password || 'Test@12345',
+      };
+
       const res = await fetch('/api/customers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -55,7 +89,7 @@ export default function NewCustomerPage() {
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Create Customer Account</h1>
-          <p className="text-sm text-slate-500">Add a new customer profile and billing details.</p>
+          <p className="text-sm text-slate-500">Add a new customer profile and automatically provision portal access.</p>
         </div>
       </div>
 
@@ -96,14 +130,14 @@ export default function NewCustomerPage() {
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Email Address *</label>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Customer Contact Email *</label>
               <input
                 type="email"
                 required
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value, loginEmail: e.target.value })}
                 className="w-full text-sm p-2.5 border rounded-lg"
-                placeholder="rajesh@royalheights.local"
+                placeholder="customer@test.local"
               />
             </div>
             <div>
@@ -126,6 +160,69 @@ export default function NewCustomerPage() {
                 className="w-full text-sm p-2.5 border rounded-lg"
               />
             </div>
+          </div>
+
+          {/* CUSTOMER PORTAL LOGIN PROVISIONING SECTION */}
+          <div className="border-t pt-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2 text-slate-900">
+                <Lock className="w-4 h-4 text-sky-600" />
+                <h4 className="text-sm font-bold">Customer Portal Login Account</h4>
+              </div>
+              <label className="flex items-center space-x-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.createLogin}
+                  onChange={(e) => setFormData({ ...formData, createLogin: e.target.checked })}
+                  className="rounded border-slate-300 text-sky-600 focus:ring-sky-500 w-4 h-4"
+                />
+                <span>Provision Customer User Account</span>
+              </label>
+            </div>
+
+            {formData.createLogin && (
+              <div className="p-4 bg-sky-50/70 border border-sky-100 rounded-xl space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Login Email *</label>
+                    <input
+                      type="email"
+                      required
+                      value={formData.loginEmail || formData.email}
+                      onChange={(e) => setFormData({ ...formData, loginEmail: e.target.value })}
+                      className="w-full text-sm p-2.5 border rounded-lg bg-white"
+                      placeholder="customer@test.local"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Login Password *</label>
+                    <input
+                      type="password"
+                      required
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      className="w-full text-sm p-2.5 border rounded-lg bg-white"
+                      placeholder="Min 6 characters (e.g. Test@12345)"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Confirm Password *</label>
+                    <input
+                      type="password"
+                      required
+                      value={formData.confirmPassword}
+                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                      className="w-full text-sm p-2.5 border rounded-lg bg-white"
+                      placeholder="Repeat password"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-sky-700 flex items-center space-x-1">
+                  <UserCheck className="w-3.5 h-3.5 text-sky-600 inline shrink-0" />
+                  <span>A CUSTOMER role user account will be created and linked automatically to this Customer record upon submission.</span>
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="border-t pt-5 space-y-4">
@@ -194,7 +291,7 @@ export default function NewCustomerPage() {
               className="inline-flex items-center space-x-2 bg-sky-600 hover:bg-sky-700 text-white font-bold text-sm px-6 py-3 rounded-lg shadow-md transition-colors"
             >
               <Save className="w-4 h-4" />
-              <span>{loading ? 'Creating...' : 'Save Customer Account'}</span>
+              <span>{loading ? 'Creating Customer & Login...' : 'Save Customer Account'}</span>
             </button>
           </div>
         </form>

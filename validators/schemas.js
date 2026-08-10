@@ -30,6 +30,9 @@ export const customerSchema = z.object({
   pincode: z.string().min(4, 'Pincode is required'),
   gstin: z.string().optional(),
   status: z.enum(['ACTIVE', 'INACTIVE']).default('ACTIVE'),
+  createLogin: z.boolean().optional().default(true),
+  loginEmail: z.string().email('Invalid login email address').optional().or(z.literal('')),
+  password: z.string().min(6, 'Password must be at least 6 characters').optional().or(z.literal('')),
 });
 
 export const liftSchema = z.object({
