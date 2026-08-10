@@ -7,7 +7,11 @@ const ServiceSchema = new mongoose.Schema(
     liftId: { type: mongoose.Schema.Types.ObjectId, ref: 'Lift', required: true },
     amcId: { type: mongoose.Schema.Types.ObjectId, ref: 'AMC' },
     technicianId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    serviceSource: { type: String, enum: ['PPM', 'BREAKDOWN', 'ADHOC'], default: 'PPM' },
+    serviceSource: {
+      type: String,
+      enum: ['PPM', 'AMC_PPM', 'BREAKDOWN', 'ADHOC'],
+      default: 'PPM',
+    },
 
     scheduledStartTime: { type: Date, required: true },
     scheduledEndTime: { type: Date, required: true },

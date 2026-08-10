@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
+import mongoose from 'mongoose';
 import dbConnect from '@/lib/db.js';
 import ServiceReport from '@/models/ServiceReport.js';
 import Service from '@/models/Service.js';
@@ -24,7 +25,14 @@ export async function POST(req) {
     let complaint = null;
 
     if (validated.serviceId) {
-      service = await Service.findById(validated.serviceId);
+      let query = {};
+      if (mongoose.Types.ObjectId.isValid(validated.serviceId)) {
+        query = { $or: [{ _id: validated.serviceId }, { serviceId: validated.serviceId }] };
+      } else {
+        query = { serviceId: validated.serviceId };
+      }
+
+      service = await Service.findOne(query);
       if (!service) return NextResponse.json({ error: 'Service not found' }, { status: 404 });
 
       // Ownership Check: Technician must be assigned to this service
@@ -34,7 +42,14 @@ export async function POST(req) {
     }
 
     if (validated.complaintId) {
-      complaint = await Complaint.findById(validated.complaintId);
+      let query = {};
+      if (mongoose.Types.ObjectId.isValid(validated.complaintId)) {
+        query = { $or: [{ _id: validated.complaintId }, { complaintId: validated.complaintId }] };
+      } else {
+        query = { complaintId: validated.complaintId };
+      }
+
+      complaint = await Complaint.findOne(query);
       if (!complaint) return NextResponse.json({ error: 'Complaint not found' }, { status: 404 });
 
       // Ownership Check: Technician must be assigned to this complaint
@@ -65,6 +80,29 @@ export async function POST(req) {
     if (service) {
       service.status = 'COMPLETED';
       service.actualEndTime = new Date();
+
+      // Sanitize scheduledStartTime / scheduledEndTime if stored as string time format ("09:00") in legacy data
+      if (typeof service.scheduledStartTime === 'string') {
+        const d = new Date();
+        const parts = service.scheduledStartTime.split(':');
+        if (parts.length >= 2) {
+          d.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10), 0, 0);
+          service.scheduledStartTime = d;
+        } else {
+          service.scheduledStartTime = new Date();
+        }
+      }
+      if (typeof service.scheduledEndTime === 'string') {
+        const d = new Date();
+        const parts = service.scheduledEndTime.split(':');
+        if (parts.length >= 2) {
+          d.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10), 0, 0);
+          service.scheduledEndTime = d;
+        } else {
+          service.scheduledEndTime = new Date(Date.now() + 2 * 3600 * 1000);
+        }
+      }
+
       await service.save();
     }
 
