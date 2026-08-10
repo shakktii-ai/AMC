@@ -57,7 +57,7 @@ export default function ServiceDetailPage() {
     setShowAssignModal(true);
     setLoadingTechs(true);
     try {
-      const res = await fetch('/api/users?role=TECHNICIAN&status=ACTIVE');
+      const res = await fetch('/api/users?role=TECHNICIAN');
       const result = await res.json();
       if (result.success) {
         setTechnicians(result.users || []);

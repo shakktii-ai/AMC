@@ -28,7 +28,14 @@ export async function GET(req) {
 
     const query = {};
     if (role) query.role = role;
-    if (status) query.status = status;
+    if (status) {
+      if (status.toUpperCase() === 'ACTIVE') {
+        query.status = { $ne: 'INACTIVE' };
+      } else {
+        query.status = status;
+      }
+    }
+
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
